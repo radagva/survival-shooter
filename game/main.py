@@ -3,7 +3,6 @@ import math
 import random
 from enum import Enum
 
-from pygame.surface import SurfaceType
 
 DISPLAY = WINX, WINY = 0, 0
 BLACK = 0, 0, 0
@@ -173,10 +172,10 @@ class Enemy:
             size = 40
         elif self.type == EnemyType.BOSS:
             self.color = (255, 0, 0)
-            self.speed = 3
-            self.health = 1000
+            self.speed = 4
+            self.health = 2000
             self.shoot_cooldown = 0
-            self.shoot_interval = 700  # 2 seconds in ms
+            self.shoot_interval = 800  # 2 seconds in ms
 
             size = 90
         elif self.type == EnemyType.SHOOTER:
@@ -287,12 +286,15 @@ bullets: list[Bullet] = []
 enemies: list[Enemy] = []
 enemy_bullets: list[EnemyBullet] = []
 
+player.draw()
+aim._setup_position(player)
+
 # Game state variables
 enemy_spawn_timer = 0
 enemy_spawn_interval = 1200  # 1.2 seconds
 game_over = False
-wave = 1
-enemies_per_wave = 8
+wave = 0
+enemies_per_wave = 5
 enemies_spawned = 0
 boss_fight = False
 
@@ -381,8 +383,16 @@ def check_collisions():
     return False
 
 
+def show_paused():
+    pause_text = font.render("Paused, press p to resume", True, (255, 255, 255))
+    surface.blit(pause_text, (surfrect.w // 2 - 150, surfrect.h // 2))
+
+
 # Main game loop
 running = True
+paused = True
+
+show_paused()
 
 while running:
     surfrect = surface.get_rect()
@@ -393,9 +403,13 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.MOUSEBUTTONDOWN and not game_over:
-            mouse_pos = pygame.mouse.get_pos()
-            start_pos = (aim.rect.x + aim.rect.w // 2, aim.rect.y + aim.rect.h // 2)
-            bullets.append(Bullet(start_pos, mouse_pos))
+            if not paused:
+                mouse_pos = pygame.mouse.get_pos()
+                start_pos = (aim.rect.x + aim.rect.w // 2, aim.rect.y + aim.rect.h // 2)
+                bullets.append(Bullet(start_pos, mouse_pos))
+        elif event.type == pygame.KEYDOWN and event.key == pygame.K_p and not game_over:
+            show_paused()
+            paused = not paused
         elif event.type == pygame.KEYDOWN and game_over:
             if event.key == pygame.K_r:
                 # Reset game
@@ -435,20 +449,25 @@ while running:
             enemy_spawn_interval = max(
                 500, enemy_spawn_interval - 100
             )  # Faster spawns each wave
+            player.health += 10
 
-        # Update player and aim
-        player._setup_movement()
-        aim._setup_position(player)
+        # Drawing
+        if not paused:
+            surface.fill(BLACK)
 
-        # Check collisions
-        game_over = check_collisions()
+        if not paused:
+            # Update player and aim
+            player._setup_movement()
+            aim._setup_position(player)
 
-    # Drawing
-    surface.fill(BLACK)
+            # Check collisions
+            game_over = check_collisions()
 
     # Draw bullets
     for bullet in bullets[:]:
-        bullet.update()
+        if not paused:
+            bullet.update()
+
         bullet.draw()
         if (
             bullet.rect.x < -50
@@ -460,12 +479,14 @@ while running:
 
     # Draw enemies
     for enemy in enemies:
-        enemy.update((player.rect.x, player.rect.y), dt, enemy_bullets)
+        if not paused:
+            enemy.update((player.rect.x, player.rect.y), dt, enemy_bullets)
         enemy.draw()
 
     # Update enemy bullets
     for bullet in enemy_bullets[:]:
-        bullet.update()
+        if not paused:
+            bullet.update()
         # Remove off-screen bullets
         if (
             bullet.rect.x < -50
