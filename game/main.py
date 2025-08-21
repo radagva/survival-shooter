@@ -20,7 +20,8 @@ class EnemyType(Enum):
     FAST = 2
     TANK = 3
     SHOOTER = 4
-    BOSS = 5
+    ORBITER = 5
+    BOSS = 6
 
 
 class Player:
@@ -175,7 +176,7 @@ class Enemy:
             self.speed = 4
             self.health = 2000
             self.shoot_cooldown = 0
-            self.shoot_interval = 800  # 2 seconds in ms
+            self.shoot_interval = 800  # 0.8 seconds in ms
 
             size = 90
         elif self.type == EnemyType.SHOOTER:
@@ -388,11 +389,19 @@ def show_paused():
     surface.blit(pause_text, (surfrect.w // 2 - 150, surfrect.h // 2))
 
 
+def draw_score():
+    score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
+    wave_text = font.render(f"Wave: {wave}", True, (255, 255, 255))
+    surface.blit(score_text, (10, 10))
+    surface.blit(wave_text, (10, 40))
+
+
 # Main game loop
 running = True
 paused = True
 
 show_paused()
+draw_score()
 
 while running:
     surfrect = surface.get_rect()
@@ -402,7 +411,9 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
-        elif event.type == pygame.MOUSEBUTTONDOWN and not game_over:
+        elif (
+            event.type == pygame.MOUSEBUTTONDOWN and event.button == 1 and not game_over
+        ):
             if not paused:
                 mouse_pos = pygame.mouse.get_pos()
                 start_pos = (aim.rect.x + aim.rect.w // 2, aim.rect.y + aim.rect.h // 2)
@@ -423,6 +434,9 @@ while running:
                 wave = 1
                 boss_fight = False
                 enemies_spawned = 0
+
+    if not paused:
+        surface.fill(BLACK)
 
     if not game_over:
         # Enemy spawning
@@ -449,12 +463,9 @@ while running:
             enemy_spawn_interval = max(
                 500, enemy_spawn_interval - 100
             )  # Faster spawns each wave
-            player.health += 10
+            player.health += 10 if player.health <= 90 else 100 - player.health
 
         # Drawing
-        if not paused:
-            surface.fill(BLACK)
-
         if not paused:
             # Update player and aim
             player._setup_movement()
@@ -510,10 +521,8 @@ while running:
         aim.draw()
 
     # Draw UI
-    score_text = font.render(f"Score: {player.score}", True, (255, 255, 255))
-    wave_text = font.render(f"Wave: {wave}", True, (255, 255, 255))
-    surface.blit(score_text, (10, 10))
-    surface.blit(wave_text, (10, 40))
+    if not paused:
+        draw_score()
 
     if game_over:
         game_over_text = font.render(
